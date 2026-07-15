@@ -2,6 +2,25 @@
 
 ## AI Usage
 <!-- Fill in at the end — how you used AI tools during this project -->
+I used Claude throughout this project for several purposes:
+- Orientation: had it walk through `add_to_collection()` and the test
+  fixture structure in `test_collection.py` before touching the review
+  comments, to understand the existing naming and deduplication patterns.
+- Code review of my own dedup logic: after writing the `AlreadyInWatchlistError`
+  check in `add_to_watchlist()` myself, I had it verify the implementation
+  matched the structure of `add_to_collection()` (check order, exception
+  placement) rather than have it write the logic for me.
+- Debugging the rebase: used it to diagnose why `git rebase origin/main`
+  completed without a reported conflict, yet `WatchlistEntry` was silently
+  missing from `models.py` afterward, and to work through re-adding the
+  model correctly against the new UUID schema.
+- Git/rebase mechanics: got walked through `git rebase -i`, Vim usage for
+  the reword operation, and `--force-with-lease` semantics, since I hadn't
+  used interactive rebase before.
+
+For Comments 4 and 5 (the design decisions), I wrote my own position and
+reasoning first, based on the difference between watchlist and collection
+semantics in this codebase. I did not have AI draft either argument.
 
 ## Comment 1 — Rename
 **What I did:**
@@ -130,3 +149,47 @@ boots without errors after the model changes.
 
 ## PR Description
 <!-- Written at the end — feature overview, design decisions, manual testing steps -->
+What this PR does
+Adds a watchlist feature to CineLog, allowing users to save films they intend
+to watch (separate from their collection of films already watched). Includes:
+
+add_to_watchlist(user_id, film_id) — adds a film to a user's watchlist,
+with validation that the film exists and isn't already on the watchlist
+get_watchlist(user_id) — returns a user's watchlist, sorted by most
+recently added
+GET /watchlist/<user_id> and POST /watchlist/<user_id>/add endpoints
+A WatchlistEntry model with UUID-based film_id, matching the UUID
+refactor that landed on main while this PR was open
+Design decisions
+Default visibility (public=True): Watchlist entries default to public
+because a watchlist is inherently forward-looking and social — unlike a
+collection entry (a personal record of films already watched), a watchlist
+represents intent that many users want to share. Full reasoning and the
+tradeoff acknowledged (privacy exposure vs. sharing friction) are documented
+in pr-response.md, Comment 4.
+
+Sort order (date added, not alphabetical): The watchlist is sorted by
+date_added descending (most recent first) rather than alphabetically by
+title, since users are more likely to want to see what they've recently
+added than to browse alphabetically. Full reasoning is documented in
+pr-response.md, Comment 5.
+
+How to manually test
+Start the app: python app.py
+In a separate terminal, create a user and a film via the existing
+/collection or direct DB routes (or use an existing seeded user/film ID).
+Add a film to the watchlist:
+curl -X POST http://127.0.0.1:5000/watchlist/<user_id>/add
+-H "Content-Type: application/json"
+-d '{"film_id": "<film_id>"}'
+Expect a 201 response with the new watchlist entry.
+4. Try adding the same film again — expect a 400/error response
+(AlreadyInWatchlistError), not a duplicate entry.
+5. View the watchlist:
+curl http://127.0.0.1:5000/watchlist/<user_id>
+
+Expect films sorted with the most recently added first.
+6. Run the automated test suite: pytest tests/ -v — all 6 tests should pass.
+
+See pr-response.md for the full review response, including reasoning for
+both design decisions and how the UUID rebase conflict was resolved.
