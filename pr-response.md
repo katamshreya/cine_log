@@ -193,3 +193,7 @@ Expect films sorted with the most recently added first.
 
 See pr-response.md for the full review response, including reasoning for
 both design decisions and how the UUID rebase conflict was resolved.
+
+## Screenshot
+
+![Watchlist feature demo](assets/Screenshot%202026-07-15%20180925.png)
